@@ -1,6 +1,8 @@
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
+# set sources.list if you have
 COPY ./sources.list /etc/apt/sources.list
+COPY ./create_cpp_project.sh /workspace/create_cpp_project.sh
 
 # Install packages
 RUN set -eux \

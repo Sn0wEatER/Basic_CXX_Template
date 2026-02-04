@@ -3,6 +3,7 @@
 **step_1**: set environment variable.
 ```bash
 cd Basic_CXX_Template-main
+mkdir <your project name>
 export PROJECT_NAME="<your project name>"
 ```
 **step_2**: create the dev-container with docker-compose.

@@ -9,22 +9,31 @@ x-project-env: &project-env
 services:
   # 第一个服务（原 project-dev，动态命名）
   app:
-    # 动态镜像名：基于 PROJECT_NAME，默认 project:latest
-    image: ${PROJECT_NAME:-project}:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     # 动态容器名：基于 PROJECT_NAME，默认 project-dev
     container_name: ${PROJECT_NAME:-project}-dev
+    ports:
+      - "2222:22"  # SSH端口，用于VSCode连接
+      - "8080:8080"  # 如果项目需要web服务，可添加端口映射
+    volumes:
+      - ./${PROJECT_NAME:-project}:/workspace/${PROJECT_NAME:-project}  # 挂载项目目录
+      - ~/.ssh:/root/.ssh:ro  # 可选：挂载SSH密钥
+      - vscode-extensions:/root/.vscode-server  # 持久化VSCode扩展
     environment:
       <<: *project-env
       # 指定c/c++编译器
-#      - CC=arm-linux-gnueabihf-gcc
-#      - CXX=arm-linux-gnueabihf-g++
+#      CC: arm-linux-gnueabihf-gcc
+#      CXX: arm-linux-gnueabihf-g++
     networks:
       # 动态网络名：避免多项目网络冲突，默认 project_dev_bridge
-      - ${PROJECT_NAME:-project}_dev_bridge
-#    working_dir: /workspace/${PROJECT_NAME:-project}
-    working_dir: /workspace
-    copy:
-      - create_cpp_project.sh:/workspace/create_cpp_project.sh
+#      - ${PROJECT_NAME:-project}_dev_bridge
+      default:
+        aliases:
+          - ${PROJECT_NAME:-project}-app
+    working_dir: /workspace/${PROJECT_NAME:-project}
+#    working_dir: /workspace
     privileged: true
     stdin_open: true
     tty: true
@@ -38,10 +47,10 @@ services:
     environment:
       <<: *project-env
       # 保留原有MySQL环境变量
-      - MYSQL_ROOT_PASSWORD=root_password
-      - MYSQL_DATABASE=aod_system
-      - MYSQL_USER=my_user
-      - MYSQL_PASSWORD=my_password
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: aod_system
+      MYSQL_USER: my_user
+      MYSQL_PASSWORD: my_password
     ports:
       - "3306:3306"
     volumes:
@@ -49,11 +58,17 @@ services:
       - ./mysql_conf:/etc/mysql/conf.d
     restart: always
     networks:
-      - ${PROJECT_NAME:-project}_dev_bridge
+#      - ${PROJECT_NAME:-project}_dev_bridge
+      default:
+        aliases:
+          - ${PROJECT_NAME:-project}-mysql
 
 # 动态网络定义：与服务网络对应，默认 project_dev_bridge
+#networks:
+#  ${PROJECT_NAME:-project}_dev_bridge:
+#    driver: bridge
 networks:
-  ${PROJECT_NAME:-project}_dev_bridge:
+  default:
     driver: bridge
 
 # 保留原有数据卷
