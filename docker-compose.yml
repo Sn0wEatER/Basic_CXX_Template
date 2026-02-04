@@ -1,0 +1,58 @@
+# 兼容大多数Docker版本的Compose文件版本（3.8 适用于Docker 19.03+）
+version: '3.8'
+
+# 定义环境变量默认值（可选，也可通过命令行/.env文件指定）
+# 注：Compose会优先读取命令行传入的变量 > .env文件 > 此处默认值
+x-project-env: &project-env
+  PROJECT_NAME: ${PROJECT_NAME:-project}
+
+services:
+  # 第一个服务（原 project-dev，动态命名）
+  app:
+    # 动态镜像名：基于 PROJECT_NAME，默认 project:latest
+    image: ${PROJECT_NAME:-project}:latest
+    # 动态容器名：基于 PROJECT_NAME，默认 project-dev
+    container_name: ${PROJECT_NAME:-project}-dev
+    environment:
+      <<: *project-env
+      # 保留原有环境变量
+      - CC=arm-linux-gnueabihf-gcc
+      - CXX=arm-linux-gnueabihf-g++
+    networks:
+      # 动态网络名：避免多项目网络冲突，默认 project_dev_bridge
+      - ${PROJECT_NAME:-project}_dev_bridge
+    working_dir: /workspace/${PROJECT_NAME:-project}
+    privileged: true
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash", "-c", "service ssh start && tail -f /dev/null"]
+
+  # MySQL 服务（动态命名）
+  mysql_server:
+    image: mysql:latest
+    # 动态容器名：基于 PROJECT_NAME，默认 project-mysql
+    container_name: ${PROJECT_NAME:-project}-mysql
+    environment:
+      <<: *project-env
+      # 保留原有MySQL环境变量
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=aod_system
+      - MYSQL_USER=my_user
+      - MYSQL_PASSWORD=my_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./mysql_conf:/etc/mysql/conf.d
+    restart: always
+    networks:
+      - ${PROJECT_NAME:-project}_dev_bridge
+
+# 动态网络定义：与服务网络对应，默认 project_dev_bridge
+networks:
+  ${PROJECT_NAME:-project}_dev_bridge:
+    driver: bridge
+
+# 保留原有数据卷
+volumes:
+  vscode-extensions:
