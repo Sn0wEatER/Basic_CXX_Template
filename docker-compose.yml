@@ -15,13 +15,16 @@ services:
     container_name: ${PROJECT_NAME:-project}-dev
     environment:
       <<: *project-env
-      # 保留原有环境变量
-      - CC=arm-linux-gnueabihf-gcc
-      - CXX=arm-linux-gnueabihf-g++
+      # 指定c/c++编译器
+#      - CC=arm-linux-gnueabihf-gcc
+#      - CXX=arm-linux-gnueabihf-g++
     networks:
       # 动态网络名：避免多项目网络冲突，默认 project_dev_bridge
       - ${PROJECT_NAME:-project}_dev_bridge
-    working_dir: /workspace/${PROJECT_NAME:-project}
+#    working_dir: /workspace/${PROJECT_NAME:-project}
+    working_dir: /workspace
+    copy:
+      - create_cpp_project.sh:/workspace/create_cpp_project.sh
     privileged: true
     stdin_open: true
     tty: true
