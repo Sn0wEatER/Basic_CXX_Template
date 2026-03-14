@@ -1,0 +1,79 @@
+# 兼容大多数Docker版本的Compose文件版本（3.8 适用于Docker 19.03+）
+version: '3.8'
+
+# 定义环境变量默认值（可选，也可通过命令行/.env文件指定）
+x-project-env: &project-env
+  PROJECT_NAME: ${PROJECT_NAME:-project}
+  # 统一挂载根目录（当前文件夹下的workspace目录）
+  WORKSPACE_DIR: ./workspace
+
+services:
+  # 应用服务容器
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME:-project}-dev
+    ports:
+      - "2222:22"  # SSH端口，用于VSCode连接
+      - "8080:8080"  # Web服务端口
+    volumes:
+      # 统一挂载：当前文件夹下的workspace目录 -> 容器内/workspace
+      - ${WORKSPACE_DIR:-./workspace}:/workspace
+      - ~/.ssh:/root/.ssh:ro  # 挂载SSH密钥（只读）
+      - vscode-extensions:/root/.vscode-server  # 持久化VSCode扩展
+    environment:
+      <<: *project-env
+      # 注入influxdb访问地址（容器名直接访问）
+      INFLUXDB_URL: http://influxdb:8086
+      CUDA_HOME: /usr/local/cuda-12.4
+      LD_LIBRARY_PATH: ${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+      PATH: ${CUDA_HOME}/bin:${PATH}
+    networks:
+      - project-network
+    working_dir: /workspace  # 统一工作目录
+    privileged: true
+    stdin_open: true
+    tty: true
+    # 添加runtime和deploy配置以启用GPU
+    runtime: nvidia # 如果您的Docker版本>=19.03，使用此简单配置
+    deploy: # 更详细、推荐的方式，控制力更强
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # 使用所有GPU，也可改为具体数字如“1”
+              capabilities: [gpu, utility, compute, video] # 根据需要启用计算、编解码等能力
+    command: ["/bin/bash", "-c", "service ssh start && tail -f /dev/null"]
+    # 依赖influxdb先启动（可选，确保服务依赖）
+    depends_on:
+      - influxdb
+
+  # InfluxDB数据库服务容器
+  influxdb:
+    image: influxdb:2
+    container_name: ${PROJECT_NAME:-project}-influxdb
+    restart: always
+    ports:
+      - "9086:8086" # HTTP UI 和 API 端口（宿主机映射）
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: "setup"
+      DOCKER_INFLUXDB_INIT_USERNAME: "admin"
+      DOCKER_INFLUXDB_INIT_PASSWORD: "password123"
+      DOCKER_INFLUXDB_INIT_ORG: "my-org"
+      DOCKER_INFLUXDB_INIT_BUCKET: "my-bucket"
+    volumes:
+      # 统一挂载：当前文件夹下的workspace/influxdb -> 容器内对应目录
+      - ${WORKSPACE_DIR:-./workspace}/influxdb/data:/var/lib/influxdb2
+      - ${WORKSPACE_DIR:-./workspace}/influxdb/config:/etc/influxdb2
+    networks:
+      - project-network
+
+# 自定义统一网络（确保两个容器在同一网络）
+networks:
+  project-network:
+    driver: bridge
+
+# 数据卷定义
+volumes:
+  vscode-extensions:
