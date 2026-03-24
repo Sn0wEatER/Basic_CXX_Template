@@ -95,8 +95,8 @@ RUN set -eux \
         libmlpack-dev \
         # 安装jsoncpp
         libjsoncpp-dev \
-	# 安装xxTex
-	texlive-latex-extra imagemagick \
+		# 安装xxTex
+		texlive-latex-extra imagemagick \
     # # 2. 手动编译安装armadillo（mlpack核心依赖）
     # && wget -q https://sourceforge.net/projects/arma/files/armadillo-12.8.2.tar.xz -O /tmp/armadillo.tar.xz \
     # && mkdir -p /tmp/armadillo && tar -xf /tmp/armadillo.tar.xz -C /tmp/armadillo --strip-components=1 \
